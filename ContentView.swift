@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var timer = PomodoroTimer()
+    @State private var hasRequestedNotification = false
     
     var body: some View {
         ZStack {
@@ -120,6 +121,13 @@ struct ContentView: View {
                 .padding(.bottom, 60)
             }
             .padding()
+        }
+        .onAppear {
+            // 應用啟動時請求通知權限
+            if !hasRequestedNotification {
+                NotificationManager.shared.requestAuthorization()
+                hasRequestedNotification = true
+            }
         }
     }
 }

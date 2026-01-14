@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import UIKit
 
 enum TimerState {
     case idle
@@ -52,6 +53,8 @@ class PomodoroTimer: ObservableObject {
     private var timer: Timer?
     private var startTime: Date?
     private var pausedTime: TimeInterval = 0
+    private let notificationManager = NotificationManager.shared
+    private let soundManager = SoundManager.shared
     
     var progress: Double {
         let total = currentSession.duration
@@ -78,6 +81,10 @@ class PomodoroTimer: ObservableObject {
         state = .running
         startTime = Date()
         
+        // 播放開始音效和震動
+        soundManager.playStartSound()
+        soundManager.lightImpact()
+        
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -90,6 +97,10 @@ class PomodoroTimer: ObservableObject {
         state = .paused
         timer?.invalidate()
         timer = nil
+        
+        // 播放暫停音效
+        soundManager.playPauseSound()
+        soundManager.lightImpact()
     }
     
     func reset() {
@@ -98,6 +109,9 @@ class PomodoroTimer: ObservableObject {
         state = .idle
         timeRemaining = currentSession.duration
         pausedTime = 0
+        
+        // 播放重置音效
+        soundManager.playResetSound()
     }
     
     func skip() {
@@ -123,6 +137,16 @@ class PomodoroTimer: ObservableObject {
         if currentSession == .work {
             completedPomodoros += 1
         }
+        
+        // 播放完成音效和震動
+        soundManager.playCompletionSound()
+        soundManager.vibrate()
+        
+        // 發送通知
+        notificationManager.sendCompletionNotification(
+            sessionType: currentSession,
+            completedPomodoros: completedPomodoros
+        )
         
         // 自動進入下一個階段
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
