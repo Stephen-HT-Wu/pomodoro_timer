@@ -34,15 +34,58 @@ struct SandglassView: View {
     
     var body: some View {
         ZStack {
-            // 沙漏外框（使用真實的沙漏形狀）
-            SandglassShape(
-                topWidth: topWidth,
-                bottomWidth: bottomWidth,
-                neckWidth: neckWidth,
-                neckY: neckY
-            )
-            .stroke(Color.primary.opacity(0.3), lineWidth: 2)
+            // 沙漏外框（使用真實的沙漏形狀）- 添加玻璃質感
+            ZStack {
+                // 玻璃主體（半透明填充）
+                SandglassShape(
+                    topWidth: topWidth,
+                    bottomWidth: bottomWidth,
+                    neckWidth: neckWidth,
+                    neckY: neckY
+                )
+                .fill(Color.white.opacity(0.15))
+                
+                // 玻璃邊框（更明顯的邊緣）
+                SandglassShape(
+                    topWidth: topWidth,
+                    bottomWidth: bottomWidth,
+                    neckWidth: neckWidth,
+                    neckY: neckY
+                )
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.6),
+                            Color.gray.opacity(0.4),
+                            Color.white.opacity(0.6)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2.5
+                )
+                
+                // 高光效果（模擬玻璃反光）
+                SandglassHighlightShape(
+                    topWidth: topWidth,
+                    bottomWidth: bottomWidth,
+                    neckWidth: neckWidth,
+                    neckY: neckY
+                )
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.4),
+                            Color.clear
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .center
+                    )
+                )
+            }
             .frame(width: sandglassWidth, height: sandglassHeight)
+            .shadow(color: Color.black.opacity(0.2), radius: 8, x: 2, y: 2)
+            .shadow(color: Color.white.opacity(0.3), radius: 4, x: -1, y: -1)
             
             // 上半部分（剩餘時間）- 從頂部開始
             TopSandView(
@@ -202,7 +245,7 @@ struct BottomSandContainerShape: Shape {
     }
 }
 
-// 上半部分沙子視圖（從底部向上填充）
+// 上半部分沙子視圖（從底部向上填充，添加真實沙質質感）
 struct TopSandView: View {
     let containerHeight: CGFloat
     let height: CGFloat
@@ -214,26 +257,34 @@ struct TopSandView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             
-            // 沙子填充，使用漸變模擬真實沙子的質感
-            // 從容器底部開始向上填充
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            color.opacity(0.95),
-                            color.opacity(0.85),
-                            color.opacity(0.75)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
+            // 沙子填充，使用多層漸變模擬真實沙子的質感和顆粒感
+            ZStack {
+                // 主體沙子（帶質感漸變）
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                color.opacity(0.95),
+                                color.opacity(0.88),
+                                color.opacity(0.82),
+                                color.opacity(0.75)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
-                .frame(height: max(height, 0))
+                
+                // 添加沙粒質感（細微紋理效果）
+                SandGrainPattern()
+                    .fill(color.opacity(0.1))
+                    .blendMode(.overlay)
+            }
+            .frame(height: max(height, 0))
         }
     }
 }
 
-// 中間沙子流動視圖（模擬沙子落下的效果）
+// 中間沙子流動視圖（模擬細細流下的沙子質地）
 struct SandFlowView: View {
     let neckWidth: CGFloat
     let sandglassHeight: CGFloat
@@ -241,41 +292,84 @@ struct SandFlowView: View {
     let color: Color
     
     @State private var particleOffset: CGFloat = 0
-    @State private var particleOpacity: Double = 1.0
     
     // 窄通道的中心位置（在 ZStack 中，y=0 是中心，所以需要調整）
     private var neckCenterY: CGFloat {
-        // neckY = 0.5 表示中間，所以在 ZStack 中就是 y = 0
         return (neckY - 0.5) * sandglassHeight
     }
     
     var body: some View {
         ZStack {
-            // 多個沙粒粒子，形成連續流動效果
-            ForEach(0..<3, id: \.self) { index in
-                // 單個沙粒
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(color.opacity(0.9))
-                    .frame(width: neckWidth * 0.6, height: 4)
-                    .offset(y: neckCenterY + particleOffset + CGFloat(index * 6))
-                    .opacity(particleOpacity)
-            }
-        }
-        .onAppear {
-            // 循環動畫：粒子從上往下移動
-            withAnimation(.linear(duration: 0.4).repeatForever(autoreverses: false)) {
-                particleOffset = 15
+            // 細沙粒流動效果 - 多個小粒子模擬細沙
+            ForEach(0..<8, id: \.self) { index in
+                // 細小沙粒（圓形，更真實）
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                color.opacity(0.95),
+                                color.opacity(0.8)
+                            ]),
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 1.5
+                        )
+                    )
+                    .frame(width: 2.5, height: 2.5)
+                    .offset(
+                        x: CGFloat.random(in: -neckWidth*0.3...neckWidth*0.3),
+                        y: neckCenterY + particleOffset + CGFloat(index * 3.5) - 12
+                    )
+                    .opacity(0.85 - Double(index) * 0.08)
+                
+                // 更小的沙粒粒子
+                Circle()
+                    .fill(color.opacity(0.7))
+                    .frame(width: 1.5, height: 1.5)
+                    .offset(
+                        x: CGFloat.random(in: -neckWidth*0.25...neckWidth*0.25),
+                        y: neckCenterY + particleOffset + CGFloat(index * 3.5) - 10 + 1.5
+                    )
+                    .opacity(0.7 - Double(index) * 0.06)
             }
             
-            // 閃爍效果，模擬沙粒落下
-            withAnimation(.easeInOut(duration: 0.2).repeatForever(autoreverses: true)) {
-                particleOpacity = 0.7
+            // 連續的沙流（細線條模擬細沙流）
+            Path { path in
+                let centerX: CGFloat = 0
+                let startY = neckCenterY + particleOffset - 12
+                let endY = neckCenterY + particleOffset + 12
+                
+                // 主要沙流
+                path.move(to: CGPoint(x: centerX, y: startY))
+                path.addLine(to: CGPoint(x: centerX, y: endY))
+            }
+            .stroke(color.opacity(0.6), lineWidth: 1.5)
+            
+            // 兩側細流
+            Path { path in
+                let leftX: CGFloat = -neckWidth * 0.2
+                let rightX: CGFloat = neckWidth * 0.2
+                let startY = neckCenterY + particleOffset - 8
+                let endY = neckCenterY + particleOffset + 8
+                
+                path.move(to: CGPoint(x: leftX, y: startY))
+                path.addLine(to: CGPoint(x: leftX, y: endY))
+                
+                path.move(to: CGPoint(x: rightX, y: startY))
+                path.addLine(to: CGPoint(x: rightX, y: endY))
+            }
+            .stroke(color.opacity(0.4), lineWidth: 1)
+        }
+        .onAppear {
+            // 平滑流動動畫：細沙連續流下
+            withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
+                particleOffset = 20
             }
         }
     }
 }
 
-// 下半部分沙子視圖（簡化版，使用 clipShape 裁切）
+// 下半部分沙子視圖（添加真實沙質質感）
 struct BottomSandView: View {
     let containerHeight: CGFloat
     let height: CGFloat
@@ -287,21 +381,89 @@ struct BottomSandView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             
-            // 沙子填充，使用漸變模擬真實沙子的質感
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            color.opacity(0.75),
-                            color.opacity(0.85),
-                            color.opacity(0.95)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
+            // 沙子填充，使用多層漸變模擬真實沙子的質感
+            ZStack {
+                // 主體沙子（帶質感漸變）
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                color.opacity(0.75),
+                                color.opacity(0.82),
+                                color.opacity(0.88),
+                                color.opacity(0.95)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
-                .frame(height: max(height, 0))
+                
+                // 添加沙粒質感（細微紋理效果）
+                SandGrainPattern()
+                    .fill(color.opacity(0.1))
+                    .blendMode(.overlay)
+            }
+            .frame(height: max(height, 0))
         }
+    }
+}
+
+// 沙粒紋理圖案（模擬細沙的質感）
+struct SandGrainPattern: View {
+    var body: some View {
+        // 使用簡單的點陣圖案模擬沙粒質感
+        GeometryReader { geometry in
+            Canvas { context, size in
+                let spacing: CGFloat = 4
+                let grainSize: CGFloat = 1.0
+                
+                // 創建規律的沙粒點陣
+                for x in stride(from: spacing/2, to: size.width, by: spacing) {
+                    for y in stride(from: spacing/2, to: size.height, by: spacing) {
+                        let offsetX = (x + y * 0.3).truncatingRemainder(dividingBy: spacing * 0.7)
+                        let offsetY = (y + x * 0.2).truncatingRemainder(dividingBy: spacing * 0.7)
+                        
+                        context.fill(
+                            Path(ellipseIn: CGRect(
+                                x: x + offsetX - grainSize/2,
+                                y: y + offsetY - grainSize/2,
+                                width: grainSize,
+                                height: grainSize
+                            )),
+                            with: .color(.white.opacity(0.1))
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 玻璃高光形狀（模擬玻璃反光效果）
+struct SandglassHighlightShape: Shape {
+    let topWidth: CGFloat
+    let bottomWidth: CGFloat
+    let neckWidth: CGFloat
+    let neckY: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let width = rect.width
+        let height = rect.height
+        let centerX = width / 2
+        
+        // 高光區域（左上方的反光）
+        // 上半部分高光
+        path.move(to: CGPoint(x: centerX - topWidth * 0.2, y: height * 0.1))
+        path.addCurve(
+            to: CGPoint(x: centerX - neckWidth * 0.3, y: height * neckY * 0.7),
+            control1: CGPoint(x: centerX - topWidth * 0.15, y: height * 0.3),
+            control2: CGPoint(x: centerX - neckWidth * 0.4, y: height * neckY * 0.5)
+        )
+        path.addLine(to: CGPoint(x: centerX - topWidth * 0.3, y: height * neckY * 0.6))
+        path.addLine(to: CGPoint(x: centerX - topWidth * 0.2, y: height * 0.1))
+        
+        return path
     }
 }
 
