@@ -34,18 +34,41 @@ struct SandglassView: View {
     
     var body: some View {
         ZStack {
-            // 沙漏外框（使用真實的沙漏形狀）- 添加玻璃質感
+            // 沙漏外框（使用真實的沙漏形狀）- 添加 3D 玻璃質感
             ZStack {
-                // 玻璃主體（半透明填充）
+                // 外層陰影（深層立體感）
                 SandglassShape(
                     topWidth: topWidth,
                     bottomWidth: bottomWidth,
                     neckWidth: neckWidth,
                     neckY: neckY
                 )
-                .fill(Color.white.opacity(0.15))
+                .fill(Color.black.opacity(0.15))
+                .offset(x: 3, y: 3)
+                .blur(radius: 8)
                 
-                // 玻璃邊框（更明顯的邊緣）
+                // 玻璃主體（更透明的玻璃質感）
+                SandglassShape(
+                    topWidth: topWidth,
+                    bottomWidth: bottomWidth,
+                    neckWidth: neckWidth,
+                    neckY: neckY
+                )
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.15),
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.05),
+                            Color.clear
+                        ]),
+                        center: UnitPoint(x: 0.35, y: 0.35),
+                        startRadius: 0,
+                        endRadius: 180
+                    )
+                )
+                
+                // 玻璃邊框（立體邊框效果）
                 SandglassShape(
                     topWidth: topWidth,
                     bottomWidth: bottomWidth,
@@ -55,17 +78,29 @@ struct SandglassView: View {
                 .stroke(
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color.white.opacity(0.6),
-                            Color.gray.opacity(0.4),
-                            Color.white.opacity(0.6)
+                            Color.white.opacity(0.8),
+                            Color.gray.opacity(0.5),
+                            Color.black.opacity(0.3),
+                            Color.gray.opacity(0.5),
+                            Color.white.opacity(0.7)
                         ]),
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 2.5
+                    lineWidth: 3
                 )
                 
-                // 高光效果（模擬玻璃反光）
+                // 內層邊框（厚度感）
+                SandglassShape(
+                    topWidth: topWidth,
+                    bottomWidth: bottomWidth,
+                    neckWidth: neckWidth,
+                    neckY: neckY
+                )
+                .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                .offset(x: -1, y: -1)
+                
+                // 高光效果（模擬玻璃反光和立體感）
                 SandglassHighlightShape(
                     topWidth: topWidth,
                     bottomWidth: bottomWidth,
@@ -73,19 +108,21 @@ struct SandglassView: View {
                     neckY: neckY
                 )
                 .fill(
-                    LinearGradient(
+                    RadialGradient(
                         gradient: Gradient(colors: [
-                            Color.white.opacity(0.4),
+                            Color.white.opacity(0.6),
+                            Color.white.opacity(0.2),
                             Color.clear
                         ]),
-                        startPoint: .topLeading,
-                        endPoint: .center
+                        center: UnitPoint(x: 0.25, y: 0.25),
+                        startRadius: 0,
+                        endRadius: 100
                     )
                 )
             }
             .frame(width: sandglassWidth, height: sandglassHeight)
-            .shadow(color: Color.black.opacity(0.2), radius: 8, x: 2, y: 2)
-            .shadow(color: Color.white.opacity(0.3), radius: 4, x: -1, y: -1)
+            .shadow(color: Color.black.opacity(0.3), radius: 12, x: 3, y: 4)
+            .shadow(color: Color.white.opacity(0.4), radius: 6, x: -2, y: -2)
             
             // 上半部分（剩餘時間）- 從頂部開始
             TopSandView(
@@ -245,7 +282,7 @@ struct BottomSandContainerShape: Shape {
     }
 }
 
-// 上半部分沙子視圖（從底部向上填充，添加真實沙質質感）
+// 上半部分沙子視圖（從窄通道往上填充，減少時從頂部開始消失）
 struct TopSandView: View {
     let containerHeight: CGFloat
     let height: CGFloat
@@ -254,33 +291,96 @@ struct TopSandView: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
+        GeometryReader { geometry in
+            let frameWidth = geometry.size.width
+            let frameHeight = geometry.size.height // 容器的總高度（從頂部到窄通道）
+            let actualHeight = max(height, 0) // 沙子從窄通道往上填充的高度
             
-            // 沙子填充，使用多層漸變模擬真實沙子的質感和顆粒感
             ZStack {
-                // 主體沙子（帶質感漸變）
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                color.opacity(0.95),
-                                color.opacity(0.88),
-                                color.opacity(0.82),
-                                color.opacity(0.75)
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                // 錐形沙子（從窄通道往上填充，減少時頂部往下移動）
+                TopSandConeShape(
+                    containerWidth: frameWidth,
+                    containerHeight: frameHeight,
+                    sandHeight: actualHeight,
+                    topWidth: topWidth,
+                    neckWidth: neckWidth
+                )
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            color.opacity(0.98),
+                            color.opacity(0.92),
+                            color.opacity(0.85),
+                            color.opacity(0.78),
+                            color.opacity(0.70)
+                        ]),
+                        center: UnitPoint(x: 0.5, y: 1.0), // 光源在下方（窄通道處）
+                        startRadius: 0,
+                        endRadius: frameWidth * 0.8
                     )
+                )
+                .shadow(color: Color.black.opacity(0.25), radius: 5, x: 2, y: 3)
                 
-                // 添加沙粒質感（細微紋理效果）
+                // 添加沙粒質感
                 SandGrainPattern()
                     .blendMode(BlendMode.overlay)
-                    .opacity(0.1)
+                    .opacity(0.08)
+                    .mask(
+                        TopSandConeShape(
+                            containerWidth: frameWidth,
+                            containerHeight: frameHeight,
+                            sandHeight: actualHeight,
+                            topWidth: topWidth,
+                            neckWidth: neckWidth
+                        )
+                    )
             }
-            .frame(height: max(height, 0))
         }
+        .frame(height: containerHeight) // 固定容器高度
+    }
+}
+
+// 上半部分沙子的錐形形狀（從窄通道往上填充，減少時頂部往下移動）
+struct TopSandConeShape: Shape {
+    let containerWidth: CGFloat
+    let containerHeight: CGFloat
+    let sandHeight: CGFloat
+    let topWidth: CGFloat
+    let neckWidth: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let width = rect.width
+        let containerHeight = rect.height // 容器總高度（從頂部到窄通道，固定）
+        let centerX = width / 2
+        
+        // 計算錐形（從窄通道往上填充）
+        // 底部固定在窄通道處（容器底部，y = containerHeight，不變）
+        let bottomY = containerHeight // 底部（窄通道處，固定不動，最後消失的地方）
+        
+        // 頂部會隨著沙子減少而往下移動
+        // 當 sandHeight 減少時，topY 從容器頂部往下移動
+        let topY = containerHeight - sandHeight // 頂部（隨著沙子減少而往下移動）
+        
+        // 底部寬度（窄通道處，較窄，固定不變）
+        let bottomWidth = neckWidth
+        
+        // 頂部寬度（根據錐形角度和沙子高度計算）
+        // 當沙子減少時，sandHeight 減少，頂部寬度也隨之變小
+        let angle = CGFloat.pi / 6 // 約 30 度（自然堆積角度）
+        let topWidthAtHeight = bottomWidth + (sandHeight * tan(angle) * 2)
+        let currentTopWidth = min(topWidthAtHeight, topWidth)
+        
+        // 繪製錐形路徑（從窄通道往上形成錐形）
+        // 底部較窄（窄通道，固定），頂部較寬（隨沙子減少而往下移動並變窄）
+        // 當沙子減少時，bottomY 不變，但 topY 往下移動，所以從頂部開始消失
+        path.move(to: CGPoint(x: centerX - bottomWidth / 2, y: bottomY))
+        path.addLine(to: CGPoint(x: centerX + bottomWidth / 2, y: bottomY))
+        path.addLine(to: CGPoint(x: centerX + currentTopWidth / 2, y: topY))
+        path.addLine(to: CGPoint(x: centerX - currentTopWidth / 2, y: topY))
+        path.closeSubpath()
+        
+        return path
     }
 }
 
@@ -300,32 +400,46 @@ struct SandFlowView: View {
     
     var body: some View {
         ZStack {
-            // 細沙粒流動效果 - 多個小粒子模擬細沙
+            // 細沙粒流動效果 - 多個小粒子模擬細沙（3D 立體感）
             ForEach(0..<8, id: \.self) { index in
-                // 細小沙粒（圓形，更真實）
+                // 細小沙粒（圓形，3D 立體球體）
                 Circle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
-                                color.opacity(0.95),
-                                color.opacity(0.8)
+                                color.opacity(0.98),
+                                color.opacity(0.85),
+                                color.opacity(0.65)
                             ]),
-                            center: .center,
+                            center: UnitPoint(x: 0.3, y: 0.3),
                             startRadius: 0,
-                            endRadius: 1.5
+                            endRadius: 2
                         )
                     )
-                    .frame(width: 2.5, height: 2.5)
+                    .frame(width: 2.8, height: 2.8)
+                    .shadow(color: color.opacity(0.5), radius: 1, x: 0.5, y: 0.5)
+                    .shadow(color: Color.black.opacity(0.3), radius: 0.5, x: -0.3, y: -0.3)
                     .offset(
                         x: CGFloat.random(in: -neckWidth*0.3...neckWidth*0.3),
                         y: neckCenterY + particleOffset + CGFloat(Double(index) * 3.5) - 12
                     )
                     .opacity(0.85 - Double(index) * 0.08)
                 
-                // 更小的沙粒粒子
+                // 更小的沙粒粒子（3D 效果）
                 Circle()
-                    .fill(color.opacity(0.7))
-                    .frame(width: 1.5, height: 1.5)
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                color.opacity(0.9),
+                                color.opacity(0.6)
+                            ]),
+                            center: UnitPoint(x: 0.3, y: 0.3),
+                            startRadius: 0,
+                            endRadius: 1.5
+                        )
+                    )
+                    .frame(width: 1.8, height: 1.8)
+                    .shadow(color: color.opacity(0.4), radius: 0.8, x: 0.3, y: 0.3)
                     .offset(
                         x: CGFloat.random(in: -neckWidth*0.25...neckWidth*0.25),
                         y: neckCenterY + particleOffset + CGFloat(Double(index) * 3.5) - 10 + 1.5
@@ -333,19 +447,31 @@ struct SandFlowView: View {
                     .opacity(0.7 - Double(index) * 0.06)
             }
             
-            // 連續的沙流（細線條模擬細沙流）
+            // 連續的沙流（細線條模擬細沙流，帶 3D 立體感）
             Path { path in
                 let centerX: CGFloat = 0
                 let startY = neckCenterY + particleOffset - 12
                 let endY = neckCenterY + particleOffset + 12
                 
-                // 主要沙流
+                // 主要沙流（帶立體陰影）
                 path.move(to: CGPoint(x: centerX, y: startY))
                 path.addLine(to: CGPoint(x: centerX, y: endY))
             }
-            .stroke(color.opacity(0.6), lineWidth: 1.5)
+            .stroke(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        color.opacity(0.7),
+                        color.opacity(0.6),
+                        color.opacity(0.7)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                lineWidth: 2
+            )
+            .shadow(color: color.opacity(0.3), radius: 1, x: 0.5, y: 0.5)
             
-            // 兩側細流
+            // 兩側細流（立體效果）
             Path { path in
                 let leftX: CGFloat = -neckWidth * 0.2
                 let rightX: CGFloat = neckWidth * 0.2
@@ -358,7 +484,8 @@ struct SandFlowView: View {
                 path.move(to: CGPoint(x: rightX, y: startY))
                 path.addLine(to: CGPoint(x: rightX, y: endY))
             }
-            .stroke(color.opacity(0.4), lineWidth: 1)
+            .stroke(color.opacity(0.5), lineWidth: 1.2)
+            .shadow(color: color.opacity(0.2), radius: 0.8, x: 0.3, y: 0.3)
         }
         .onAppear {
             // 平滑流動動畫：細沙連續流下
@@ -369,7 +496,7 @@ struct SandFlowView: View {
     }
 }
 
-// 下半部分沙子視圖（添加真實沙質質感）
+// 下半部分沙子視圖（錐形堆積效果，像真實沙漏一樣）
 struct BottomSandView: View {
     let containerHeight: CGFloat
     let height: CGFloat
@@ -379,32 +506,93 @@ struct BottomSandView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 0)
+            Spacer(minLength: 0) // 將沙子推到底部
             
-            // 沙子填充，使用多層漸變模擬真實沙子的質感
-            ZStack {
-                // 主體沙子（帶質感漸變）
-                Rectangle()
+            GeometryReader { geometry in
+                let frameWidth = geometry.size.width
+                let actualHeight = max(height, 0)
+                
+                ZStack {
+                    // 錐形沙子堆積（從底部往上形成錐形小山丘）
+                    BottomSandConeShape(
+                        containerWidth: frameWidth,
+                        containerHeight: actualHeight,
+                        sandHeight: actualHeight,
+                        bottomWidth: bottomWidth,
+                        neckWidth: neckWidth
+                    )
                     .fill(
-                        LinearGradient(
+                        RadialGradient(
                             gradient: Gradient(colors: [
-                                color.opacity(0.75),
-                                color.opacity(0.82),
-                                color.opacity(0.88),
-                                color.opacity(0.95)
+                                color.opacity(0.70),
+                                color.opacity(0.78),
+                                color.opacity(0.85),
+                                color.opacity(0.92),
+                                color.opacity(0.98)
                             ]),
-                            startPoint: .top,
-                            endPoint: .bottom
+                            center: UnitPoint(x: 0.5, y: 1.0), // 光源在底部（真實光照）
+                            startRadius: 0,
+                            endRadius: frameWidth * 0.9
                         )
                     )
-                
-                // 添加沙粒質感（細微紋理效果）
-                SandGrainPattern()
-                    .blendMode(BlendMode.overlay)
-                    .opacity(0.1)
+                    .shadow(color: Color.black.opacity(0.25), radius: 5, x: -2, y: -3)
+                    
+                    // 添加沙粒質感
+                    SandGrainPattern()
+                        .blendMode(BlendMode.overlay)
+                        .opacity(0.08)
+                        .mask(
+                            BottomSandConeShape(
+                                containerWidth: frameWidth,
+                                containerHeight: actualHeight,
+                                sandHeight: actualHeight,
+                                bottomWidth: bottomWidth,
+                                neckWidth: neckWidth
+                            )
+                        )
+                }
             }
             .frame(height: max(height, 0))
         }
+    }
+}
+
+// 下半部分沙子的錐形形狀（從底部往上堆積成小山丘）
+struct BottomSandConeShape: Shape {
+    let containerWidth: CGFloat
+    let containerHeight: CGFloat
+    let sandHeight: CGFloat
+    let bottomWidth: CGFloat
+    let neckWidth: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let width = rect.width
+        let height = rect.height
+        let centerX = width / 2
+        
+        // 計算錐形堆積（從底部往上堆積）
+        let bottomY = height // 底部（容器底部，沙子堆積的起點）
+        let topY = height - sandHeight // 頂部（錐形頂部，根據沙子高度計算）
+        
+        // 錐形頂部寬度（窄通道處，較窄）
+        let topWidthAtHeight = neckWidth
+        
+        // 底部寬度（根據錐形角度計算，形成小山丘）
+        // 使用自然堆積角度（約 30-35 度）
+        let angle = CGFloat.pi / 6 // 約 30 度
+        let calculatedBottomWidth = topWidthAtHeight + (sandHeight * tan(angle) * 2)
+        let currentBottomWidth = min(calculatedBottomWidth, bottomWidth)
+        
+        // 繪製錐形路徑（從底部往上形成錐形，像小山丘一樣）
+        // 底部是寬的（容器底部），頂部是窄的（靠近窄通道）
+        path.move(to: CGPoint(x: centerX - currentBottomWidth / 2, y: bottomY))
+        path.addLine(to: CGPoint(x: centerX + currentBottomWidth / 2, y: bottomY))
+        path.addLine(to: CGPoint(x: centerX + topWidthAtHeight / 2, y: topY))
+        path.addLine(to: CGPoint(x: centerX - topWidthAtHeight / 2, y: topY))
+        path.closeSubpath()
+        
+        return path
     }
 }
 
