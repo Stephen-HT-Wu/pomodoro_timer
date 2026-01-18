@@ -21,15 +21,21 @@ enum SessionType {
     case shortBreak
     case longBreak
     
-    var duration: TimeInterval {
+    func duration(settings: TimerSettings) -> TimeInterval {
         switch self {
         case .work:
-            return 25 * 60 // 25 分鐘
+            return TimeInterval(settings.workDurationMinutes * 60)
         case .shortBreak:
-            return 5 * 60  // 5 分鐘
+            return TimeInterval(settings.shortBreakMinutes * 60)
         case .longBreak:
-            return 15 * 60 // 15 分鐘
+            return TimeInterval(settings.longBreakMinutes * 60)
         }
+    }
+    
+    // 為了向後兼容，保留一個默認的 duration（使用默認設置）
+    var duration: TimeInterval {
+        let settings = TimerSettings.shared
+        return self.duration(settings: settings)
     }
     
     var title: String {
@@ -55,10 +61,28 @@ class PomodoroTimer: ObservableObject {
     private var pausedTime: TimeInterval = 0
     private let notificationManager = NotificationManager.shared
     private let soundManager = SoundManager.shared
+    private let settings = TimerSettings.shared
+    private var settingsCancellable: AnyCancellable?
     
     var progress: Double {
-        let total = currentSession.duration
+        let total = currentSession.duration(settings: settings)
         return 1.0 - (timeRemaining / total)
+    }
+    
+    init() {
+        // 監聽設置變化，當設置改變時重置計時器（如果處於 idle 狀態）
+        settingsCancellable = Publishers.CombineLatest3(
+            settings.$workDurationMinutes,
+            settings.$shortBreakMinutes,
+            settings.$longBreakMinutes
+        )
+        .sink { [weak self] _ in
+            guard let self = self, self.state == .idle else { return }
+            self.timeRemaining = self.currentSession.duration(settings: self.settings)
+        }
+        
+        // 初始化時間
+        timeRemaining = currentSession.duration(settings: settings)
     }
     
     var formattedTime: String {
@@ -75,7 +99,7 @@ class PomodoroTimer: ObservableObject {
             timeRemaining = pausedTime
         } else {
             // 新開始
-            timeRemaining = currentSession.duration
+            timeRemaining = currentSession.duration(settings: settings)
         }
         
         state = .running
@@ -107,7 +131,7 @@ class PomodoroTimer: ObservableObject {
         timer?.invalidate()
         timer = nil
         state = .idle
-        timeRemaining = currentSession.duration
+        timeRemaining = currentSession.duration(settings: settings)
         pausedTime = 0
         
         // 播放重置音效
@@ -169,7 +193,7 @@ class PomodoroTimer: ObservableObject {
             currentSession = .work
         }
         
-        timeRemaining = currentSession.duration
+        timeRemaining = currentSession.duration(settings: settings)
         pausedTime = 0
     }
     

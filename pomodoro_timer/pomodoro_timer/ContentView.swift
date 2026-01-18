@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var timer = PomodoroTimer()
     @State private var hasRequestedNotification = false
+    @State private var showSettings = false
     
     var body: some View {
         ZStack {
@@ -25,8 +26,22 @@ struct ContentView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 40) {
-                // 標題
+                // 標題和設置按鈕
                 VStack(spacing: 8) {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.primary)
+                                .opacity(0.6)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.top, 10)
+                    }
+                    
                     Text(timer.currentSession.title)
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.primary)
@@ -35,7 +50,7 @@ struct ContentView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.secondary)
                 }
-                .padding(.top, 60)
+                .padding(.top, 20)
                 
                 Spacer()
                 
@@ -121,6 +136,9 @@ struct ContentView: View {
                 .padding(.bottom, 60)
             }
             .padding()
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .onAppear {
             // 應用啟動時請求通知權限
