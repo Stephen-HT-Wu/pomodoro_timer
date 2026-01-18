@@ -142,13 +142,14 @@ struct SandglassView: View {
             )
             .offset(y: -(sandglassHeight / 2 - sandglassHeight * 0.48 / 2))
             
-            // 中間通道 - 沙子流動效果（固定在中間窄通道位置）
+            // 中間通道 - 沙子流動效果（固定在中間窄通道位置，延伸到下半部）
             if timer.state == .running && smoothProgress > 0.01 && smoothProgress < 0.99 {
                 SandFlowView(
                     neckWidth: neckWidth,
                     sandglassHeight: sandglassHeight,
                     neckY: neckY,
-                    color: isWorkSession ? Color.blue : Color.green
+                    color: isWorkSession ? Color.blue : Color.green,
+                    smoothProgress: smoothProgress
                 )
                 .frame(width: sandglassWidth, height: sandglassHeight)
             }
@@ -171,7 +172,7 @@ struct SandglassView: View {
             )
             .offset(y: (sandglassHeight / 2 - sandglassHeight * 0.48 / 2))
             
-            // 時間文字顯示（中央，使用半透明背景提高可讀性）
+            // 時間文字顯示（移到沙漏頂端，使用半透明背景提高可讀性）
             VStack(spacing: 4) {
                 Text(timer.formattedTime)
                     .font(.system(size: 42, weight: .bold, design: .rounded))
@@ -189,6 +190,7 @@ struct SandglassView: View {
                     .fill(Color(UIColor.systemBackground).opacity(0.7))
                     .blur(radius: 1)
             )
+            .offset(y: -sandglassHeight * 0.55) // 移到沙漏頂端
         }
         .frame(width: sandglassWidth, height: sandglassHeight)
         .onChange(of: timer.progress) { newValue in
@@ -390,6 +392,7 @@ struct SandFlowView: View {
     let sandglassHeight: CGFloat
     let neckY: CGFloat
     let color: Color
+    let smoothProgress: Double // 添加進度參數，計算下半部沙堆位置
     
     @State private var particleOffset: CGFloat = 0
     
@@ -399,11 +402,26 @@ struct SandFlowView: View {
     }
     
     var body: some View {
-        ZStack {
-            // 細沙粒流動效果 - 多個小粒子模擬細沙（3D 立體感）
-            ForEach(0..<8, id: \.self) { index in
-                // 細小沙粒（圓形，3D 立體球體）
-                Circle()
+        // 計算下半部分沙堆的頂部位置（在 ZStack 坐標中，y=0 是中心）
+        // 下半部分的容器偏移是 sandglassHeight/2 - sandglassHeight*0.48/2 = sandglassHeight * 0.26
+        // 下半部分容器的頂部（窄通道處）在：sandglassHeight * 0.26
+        // 下半部分容器的底部在：sandglassHeight * 0.26 + sandglassHeight * 0.48 = sandglassHeight * 0.74
+        // 沙堆從底部往上堆積，高度是 sandglassHeight * 0.48 * smoothProgress
+        // 所以沙堆頂部在：sandglassHeight * 0.74 - (sandglassHeight * 0.48 * smoothProgress)
+        // 當 smoothProgress 增加時，沙堆高度增加，頂部往上移動（y 值減小）
+        // 但我們需要的是在 ZStack 坐標中（y=0 是中心，正方向向下）
+        let bottomSandTopY = sandglassHeight * 0.74 - (sandglassHeight * 0.48 * CGFloat(smoothProgress))
+        let maxParticleY = bottomSandTopY - 10 // 粒子延伸到沙堆頂部上方一點
+        
+        return ZStack {
+            // 細沙粒流動效果 - 多個小粒子模擬細沙（3D 立體感，延伸到下半部）
+            ForEach(0..<12, id: \.self) { index in
+                let particleBaseY = neckCenterY + particleOffset + CGFloat(Double(index) * 4.5)
+                let particleY: CGFloat = particleBaseY <= maxParticleY ? particleBaseY : maxParticleY
+                
+                Group {
+                    // 細小沙粒（圓形，3D 立體球體）
+                    Circle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
@@ -421,12 +439,12 @@ struct SandFlowView: View {
                     .shadow(color: Color.black.opacity(0.3), radius: 0.5, x: -0.3, y: -0.3)
                     .offset(
                         x: CGFloat.random(in: -neckWidth*0.3...neckWidth*0.3),
-                        y: neckCenterY + particleOffset + CGFloat(Double(index) * 3.5) - 12
+                        y: particleY - 12
                     )
-                    .opacity(0.85 - Double(index) * 0.08)
-                
-                // 更小的沙粒粒子（3D 效果）
-                Circle()
+                    .opacity(0.85 - Double(index) * 0.06)
+                    
+                    // 更小的沙粒粒子（3D 效果）
+                    Circle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
@@ -442,18 +460,25 @@ struct SandFlowView: View {
                     .shadow(color: color.opacity(0.4), radius: 0.8, x: 0.3, y: 0.3)
                     .offset(
                         x: CGFloat.random(in: -neckWidth*0.25...neckWidth*0.25),
-                        y: neckCenterY + particleOffset + CGFloat(Double(index) * 3.5) - 10 + 1.5
+                        y: particleY - 10 + 1.5
                     )
-                    .opacity(0.7 - Double(index) * 0.06)
+                    .opacity(0.7 - Double(index) * 0.05)
+                }
             }
             
-            // 連續的沙流（細線條模擬細沙流，帶 3D 立體感）
+            // 連續的沙流（細線條模擬細沙流，延伸到下半部堆積的沙粒上）
+            // 計算沙流終點：應該落到沙堆頂部，但要確保至少有基本的流動距離
+            let baseFlowEndY = neckCenterY + particleOffset + 80 // 基礎流動距離
+            let targetFlowEndY = bottomSandTopY - 20 // 目標：沙堆頂部上方一點
+            // 平滑選擇：取兩者的較小值，但確保不會太小
+            let flowEndY = min(baseFlowEndY, max(targetFlowEndY, neckCenterY + 30)) // 至少從窄通道往下延伸30點
+            
             Path { path in
                 let centerX: CGFloat = 0
-                let startY = neckCenterY + particleOffset - 12
-                let endY = neckCenterY + particleOffset + 12
+                let startY = neckCenterY + particleOffset - 12 // 從窄通道上方開始
+                let endY = flowEndY // 延伸到下半部堆積的沙粒上
                 
-                // 主要沙流（帶立體陰影）
+                // 主要沙流（帶立體陰影，延伸到下半部）
                 path.move(to: CGPoint(x: centerX, y: startY))
                 path.addLine(to: CGPoint(x: centerX, y: endY))
             }
@@ -471,12 +496,12 @@ struct SandFlowView: View {
             )
             .shadow(color: color.opacity(0.3), radius: 1, x: 0.5, y: 0.5)
             
-            // 兩側細流（立體效果）
+            // 兩側細流（立體效果，延伸到下半部）
             Path { path in
                 let leftX: CGFloat = -neckWidth * 0.2
                 let rightX: CGFloat = neckWidth * 0.2
                 let startY = neckCenterY + particleOffset - 8
-                let endY = neckCenterY + particleOffset + 8
+                let endY = flowEndY - 4 // 稍短一些
                 
                 path.move(to: CGPoint(x: leftX, y: startY))
                 path.addLine(to: CGPoint(x: leftX, y: endY))
@@ -488,8 +513,8 @@ struct SandFlowView: View {
             .shadow(color: color.opacity(0.2), radius: 0.8, x: 0.3, y: 0.3)
         }
         .onAppear {
-            // 平滑流動動畫：細沙連續流下
-            withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
+            // 平滑流動動畫：細沙連續流下（每秒4次，更自然）
+            withAnimation(.linear(duration: 0.25).repeatForever(autoreverses: false)) {
                 particleOffset = 20
             }
         }
