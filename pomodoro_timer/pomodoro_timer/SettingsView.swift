@@ -14,6 +14,15 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("顯示樣式")) {
+                    Picker("視圖樣式", selection: $settings.viewStyle) {
+                        ForEach(TimerViewStyle.allCases, id: \.self) { style in
+                            Text(style.displayName).tag(style)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
                 Section(header: Text("計時器時間設置")) {
                     // 工作時間
                     HStack {

@@ -8,6 +8,20 @@
 import Foundation
 import Combine
 
+enum TimerViewStyle: String, CaseIterable {
+    case circular = "circular"
+    case sandglass = "sandglass"
+    
+    var displayName: String {
+        switch self {
+        case .circular:
+            return "圓形進度條"
+        case .sandglass:
+            return "數位沙漏"
+        }
+    }
+}
+
 class TimerSettings: ObservableObject {
     static let shared = TimerSettings()
     
@@ -17,6 +31,7 @@ class TimerSettings: ObservableObject {
     private let workDurationKey = "workDurationMinutes"
     private let shortBreakKey = "shortBreakMinutes"
     private let longBreakKey = "longBreakMinutes"
+    private let viewStyleKey = "timerViewStyle"
     
     @Published var workDurationMinutes: Int {
         didSet {
@@ -36,11 +51,25 @@ class TimerSettings: ObservableObject {
         }
     }
     
+    @Published var viewStyle: TimerViewStyle {
+        didSet {
+            defaults.set(viewStyle.rawValue, forKey: viewStyleKey)
+        }
+    }
+    
     private init() {
         // 從 UserDefaults 讀取設置，如果沒有則使用默認值
         self.workDurationMinutes = defaults.object(forKey: workDurationKey) as? Int ?? 25
         self.shortBreakMinutes = defaults.object(forKey: shortBreakKey) as? Int ?? 5
         self.longBreakMinutes = defaults.object(forKey: longBreakKey) as? Int ?? 15
+        
+        // 讀取視圖樣式
+        if let styleString = defaults.string(forKey: viewStyleKey),
+           let style = TimerViewStyle(rawValue: styleString) {
+            self.viewStyle = style
+        } else {
+            self.viewStyle = .circular // 默認使用圓形視圖
+        }
     }
     
     func resetToDefaults() {
