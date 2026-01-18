@@ -276,8 +276,8 @@ struct TopSandView: View {
                 
                 // 添加沙粒質感（細微紋理效果）
                 SandGrainPattern()
-                    .fill(color.opacity(0.1))
-                    .blendMode(.overlay)
+                    .blendMode(BlendMode.overlay)
+                    .opacity(0.1)
             }
             .frame(height: max(height, 0))
         }
@@ -400,42 +400,30 @@ struct BottomSandView: View {
                 
                 // 添加沙粒質感（細微紋理效果）
                 SandGrainPattern()
-                    .fill(color.opacity(0.1))
-                    .blendMode(.overlay)
+                    .blendMode(BlendMode.overlay)
+                    .opacity(0.1)
             }
             .frame(height: max(height, 0))
         }
     }
 }
 
-// 沙粒紋理圖案（模擬細沙的質感）
+// 沙粒紋理圖案（模擬細沙的質感）- 使用簡單方式兼容所有 iOS 版本
 struct SandGrainPattern: View {
     var body: some View {
-        // 使用簡單的點陣圖案模擬沙粒質感
-        GeometryReader { geometry in
-            Canvas { context, size in
-                let spacing: CGFloat = 4
-                let grainSize: CGFloat = 1.0
-                
-                // 創建規律的沙粒點陣
-                for x in stride(from: spacing/2, to: size.width, by: spacing) {
-                    for y in stride(from: spacing/2, to: size.height, by: spacing) {
-                        let offsetX = (x + y * 0.3).truncatingRemainder(dividingBy: spacing * 0.7)
-                        let offsetY = (y + x * 0.2).truncatingRemainder(dividingBy: spacing * 0.7)
-                        
-                        context.fill(
-                            Path(ellipseIn: CGRect(
-                                x: x + offsetX - grainSize/2,
-                                y: y + offsetY - grainSize/2,
-                                width: grainSize,
-                                height: grainSize
-                            )),
-                            with: .color(.white.opacity(0.1))
-                        )
-                    }
-                }
-            }
-        }
+        // 使用簡單的漸變紋理模擬沙粒質感（兼容 iOS 14+）
+        LinearGradient(
+            gradient: Gradient(stops: [
+                .init(color: .white.opacity(0.05), location: 0),
+                .init(color: .clear, location: 0.3),
+                .init(color: .white.opacity(0.08), location: 0.5),
+                .init(color: .clear, location: 0.7),
+                .init(color: .white.opacity(0.05), location: 1)
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .blur(radius: 0.5)
     }
 }
 
