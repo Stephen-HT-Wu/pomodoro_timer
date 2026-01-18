@@ -318,7 +318,7 @@ struct SandFlowView: View {
                     .frame(width: 2.5, height: 2.5)
                     .offset(
                         x: CGFloat.random(in: -neckWidth*0.3...neckWidth*0.3),
-                        y: neckCenterY + particleOffset + CGFloat(index * 3.5) - 12
+                        y: neckCenterY + particleOffset + CGFloat(Double(index) * 3.5) - 12
                     )
                     .opacity(0.85 - Double(index) * 0.08)
                 
@@ -328,7 +328,7 @@ struct SandFlowView: View {
                     .frame(width: 1.5, height: 1.5)
                     .offset(
                         x: CGFloat.random(in: -neckWidth*0.25...neckWidth*0.25),
-                        y: neckCenterY + particleOffset + CGFloat(index * 3.5) - 10 + 1.5
+                        y: neckCenterY + particleOffset + CGFloat(Double(index) * 3.5) - 10 + 1.5
                     )
                     .opacity(0.7 - Double(index) * 0.06)
             }
